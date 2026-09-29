@@ -1,0 +1,6 @@
+numpy>=1.26
+scipy>=1.11
+
+# Only needed for plots.py and the figures in validate.py. Pricing and the test
+# suite do not import it.
+matplotlib>=3.8

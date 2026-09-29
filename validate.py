@@ -7,8 +7,6 @@ away from the code:
 
 Run from the repository root.
 """
-from __future__ import annotations
-
 import io
 import sys
 import time
@@ -16,11 +14,13 @@ from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT))
 
-from options_pricing import GREEK_NAMES, binomial as bn, black_scholes as bs  # noqa: E402
-from options_pricing import crank_nicolson as cn  # noqa: E402
+import binomial as bn
+import black_scholes as bs
+import crank_nicolson as cn
+from black_scholes import GREEK_NAMES
 
 DOCS = ROOT / "docs"
 IMG = DOCS / "img"
@@ -210,7 +210,7 @@ def figures(rows) -> None:
     IMG.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update({"figure.dpi": 130, "savefig.bbox": "tight", "font.size": 9})
 
-    from options_pricing import plots
+    import plots
 
     fig = plots.greeks_vs_spot(100.0, 1.0, 0.05, 0.2, "call")
     fig.savefig(IMG / "greeks.png")

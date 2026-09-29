@@ -1,14 +1,18 @@
 """Analytic formulas against published values and against identities that must
 hold exactly regardless of the numbers.
 """
-from __future__ import annotations
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import math
 
 import numpy as np
 import pytest
 
-from options_pricing import black_scholes as bs
+import black_scholes as bs
 
 # Hull's worked example, ch. 15: S=42, K=40, r=10%, sigma=20%, tau=0.5 years.
 # Hull reports call 4.76, put 0.81.

@@ -19,7 +19,8 @@ Known defects, each with a named regression test in ``tests/test_numerical.py``:
 6. Pricing calls ``plt.show()`` from inside the pricing routine and ends in
    ``return print(...)``, so it returns ``None``.
 
-The working implementation is in ``src/options_pricing/``.
+The working implementation is the flat modules at the repository root:
+``black_scholes.py``, ``binomial.py`` and ``crank_nicolson.py``.
 """
 
 import numpy as np

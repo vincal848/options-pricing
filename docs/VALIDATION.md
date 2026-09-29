@@ -109,12 +109,12 @@ Single price, at the money, on one core.
 
 | Method | Setting | Time | Error |
 |---|---|---|---|
-| analytic | closed form | 338 us | exact |
-| binomial | 500 steps | 4.9 ms | 4.00e-03 |
-| binomial | 2000 steps | 25.7 ms | 1.00e-03 |
-| Crank-Nicolson | 400x400 | 40.3 ms | 1.14e-03 |
-| Crank-Nicolson | 800x800 | 106.6 ms | 2.85e-04 |
-| binomial | 8000 steps | 181.2 ms | 2.50e-04 |
+| analytic | closed form | 110 us | exact |
+| binomial | 500 steps | 1.7 ms | 4.00e-03 |
+| binomial | 2000 steps | 8.9 ms | 1.00e-03 |
+| Crank-Nicolson | 400x400 | 15.1 ms | 1.14e-03 |
+| Crank-Nicolson | 800x800 | 37.9 ms | 2.85e-04 |
+| binomial | 8000 steps | 64.2 ms | 2.50e-04 |
 
 Both numerical methods do O(n^2) work here -- the tree touches every node
 once, and Crank-Nicolson does an O(n) tridiagonal solve at each of n time
@@ -125,7 +125,7 @@ At loose tolerances the tree wins outright: 2000 steps reaches 1e-3 faster
 than a 400x400 grid reaches the same figure. The ordering reverses as the
 tolerance tightens, because first-order convergence means the tree needs ten
 times the steps per extra decimal place -- reaching 3e-04 costs it
-8000 steps and 181 ms, against 107 ms for
+8000 steps and 64 ms, against 38 ms for
 the 800x800 grid that gets there. Neither is a reason to prefer them to the
 closed form when one exists; the point of both is the American case, where
 it does not.

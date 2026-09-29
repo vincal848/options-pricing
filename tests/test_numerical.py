@@ -1,14 +1,18 @@
 """Binomial and Crank-Nicolson against the analytic price, against each other,
 and against the regressions that the original implementation failed.
 """
-from __future__ import annotations
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 import pytest
 
-from options_pricing import binomial as bn
-from options_pricing import black_scholes as bs
-from options_pricing import crank_nicolson as cn
+import binomial as bn
+import black_scholes as bs
+import crank_nicolson as cn
 
 ATM = dict(S=100.0, K=100.0, tau=1.0, r=0.05, sigma=0.20, q=0.0)
 
