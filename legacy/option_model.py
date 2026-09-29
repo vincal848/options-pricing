@@ -1,3 +1,27 @@
+"""SUPERSEDED. Kept for reference only -- this file is not part of the package and
+is known to be incorrect.
+
+This is the original coursework implementation. It is preserved because the README's
+"What was wrong" section refers to it, and because the defects in it are more
+instructive read against the replacement than described in prose. Do not import it.
+
+Known defects, each with a named regression test in ``tests/test_numerical.py``:
+
+1. ``p = np.exp((self.r-self.q)*(self.t/self.N) - down_factor)/(up_factor-down_factor)``
+   subtracts the down-factor inside the exponential. Gives p = 6.69 at 50 steps and
+   13.19 at 200, so the price diverges as steps are added.
+2. ``exercise = np.maximum(0, price_tree[self.t, i] - self.K ...)`` indexes the lattice
+   at the period argument instead of the backward-induction level ``n``.
+3. Put rho is returned positive; it must be negative.
+4. Call vega carries a spurious ``1/np.sqrt(2*math.pi)`` that put vega does not.
+5. ``dt = self.t/self.N`` conflates the period index with time to maturity, and
+   ``N - t`` is used as both a year count and a step count.
+6. Pricing calls ``plt.show()`` from inside the pricing routine and ends in
+   ``return print(...)``, so it returns ``None``.
+
+The working implementation is in ``src/options_pricing/``.
+"""
+
 import numpy as np
 from scipy.stats import norm
 import matplotlib.pyplot as plt

@@ -1,68 +1,273 @@
-This project was based on a final project where I used equations for the value/price of European and American Options based on the Options, Futures, and derivatives by Hull and the Primer for Financial Engineering by Dan Stefanica. The primary method used was binomial methods for both american and european. I initially attempted the finite differences method for american options, as an alternative, but had blown up values. Since this was a final course project, and it didn't have high reliability, I removed it from the file. However, I describe the process below that I initially implemented and describe where it may have failed. Due to challenges in this project, I am completing a Numerical Analysis course in Spring 2025.
+# Option Pricing: Analytic, Binomial and Finite-Difference
 
-# Stock Price Process to Black Scholes 
-Using the stock process typically defined, we start with:
+[![tests](https://github.com/vincal848/options_pricing/actions/workflows/tests.yml/badge.svg)](https://github.com/vincal848/options_pricing/actions/workflows/tests.yml)
 
-$$dS = \mu S dt + \sigma S dz$$
+Three independent ways to price European and American options — the closed-form
+Black-Scholes-Merton solution, a Cox-Ross-Rubinstein binomial tree, and a
+Crank-Nicolson finite-difference solver — each exposing the same interface so they
+can be checked against one another. The analytic price is exact for European
+options, so it is the reference that pins the two numerical methods. For American
+options, where no closed form exists, the methods are cross-checked against each
+other and against bounds that any correct implementation must satisfy.
 
-### Drift Rates
-where we have the $\mu S$ defined as the drift rate since we take S as the price and the parameter $\mu$ as the expected rate of return on a stock. We can easily see that without the uncertainty and variation term $\mu S dt$ we would get $\int_{0}^{T}S_T = S_0e^{\mu T}$ as a compounding of the drift rate through time T, or time to maturity.
+This began as a coursework project and has been rebuilt. The numerical methods were
+wrong in ways a price-only spot check does not reveal, and the finite-difference
+solver the original write-up described at length but never shipped now exists and
+converges at its theoretical order. [What was wrong, and how it was found](#what-was-wrong),
+is the most useful part of this repository.
 
-### Volatility/Uncertainty
-Our assumption, is that the variability is constant over each of the short time periods($\Delta t$) s.t. we can utilize $\sigma$ throughout the model. This follows geometric brownian motion in a discrete time model as we are operating on small intervals of $\Delta t$.
+![Convergence of both numerical methods to the analytic price](docs/img/convergence.png)
 
-So, with that we can actually further our understanding of the process using a **call** or **put**.
+## At a glance
 
-## Using Ito's Lemma for the price
+| | |
+|---|---|
+| **Methods** | Black-Scholes-Merton closed form; CRR binomial tree; Crank-Nicolson finite differences |
+| **Instruments** | European and American calls and puts, with a continuous dividend yield |
+| **Outputs** | Price, the five Greeks, implied volatility, early-exercise premium |
+| **Validation** | 58 tests: published values, convergence order, put-call parity, dominance bounds, cross-method agreement |
+| **Observed order** | Binomial 1.00, Crank-Nicolson 2.00 — measured, not assumed |
+| **Stack** | Python, NumPy, SciPy, Typer |
 
-Let *f* represent the price of a call, where *f* is a function of S and t.
+## Results
 
-$$df = \left( \frac{\partial{f}}{\partial{S}} \mu S + \frac{\partial{f}}{\partial{t}} + \frac{1}{2} \frac{\partial{f^2}}{\partial^2{S}} \right)dt + \frac{\partial{f}}{\partial{S}} \sigma S dz$$
+Every number below comes from [`scripts/validate.py`](scripts/validate.py), which
+regenerates [docs/VALIDATION.md](docs/VALIDATION.md) and the figures here, so the
+documentation cannot drift from the code.
 
-Using the discrete values we have $\Delta S = \mu S \Delta t + \sigma S \Delta z$. Additionally, $Delta z = \epsilon \sqrt{ \Delta t}$
+**European put, at the money** (S = K = 100, τ = 1y, r = 5%, σ = 20%; analytic value
+5.5735260223):
 
-which we can use to reformat *f* as:
+| n | Binomial | error | n × error | Crank-Nicolson | error | n × error |
+|---|---|---|---|---|---|---|
+| 100 | 5.55355411 | 2.00e-02 | 1.997 | 5.55544750 | 1.81e-02 | 1.808 |
+| 500 | 5.56952759 | 4.00e-03 | 1.999 | 5.57279734 | 7.29e-04 | 0.364 |
+| 2000 | 5.57252623 | 1.00e-03 | 2.000 | 5.57348049 | 4.55e-05 | 0.091 |
+| 4000 | 5.57302611 | 5.00e-04 | 2.000 | 5.57351464 | 1.14e-05 | 0.046 |
 
-$$\Delta f = \left( \frac{\partial{f}}{\partial{S}} \mu S + \frac{\partial{f}}{\partial{t}} + \frac{1}{2} \frac{\partial{f^2}}{\partial^2{S}} \right) \Delta t + \frac{\partial{f}}{\partial{S}} \sigma S \epsilon \sqrt{\Delta t}$$
+`n × error` is flat at 2.000 for the tree, so it is exactly first order. It keeps
+halving for Crank-Nicolson, so that one is second order. Fitting the last four
+refinements gives **1.00** and **2.00**.
 
-## Constructing the option
+**Greeks, at-the-money call**, as relative error against the analytic values:
 
-We define the portfolio as $\Pi$ and use:
+| Greek | Analytic | Binomial (1500 steps) | Crank-Nicolson (600×600) |
+|---|---|---|---|
+| delta | 0.636831 | 3.3e-05 | 2.0e-05 |
+| gamma | 0.018762 | 5.6e-04 | 7.9e-05 |
+| vega | 37.524035 | 1.7e-04 | 5.0e-05 |
+| theta | −6.414028 | 3.2e-04 | 4.0e-05 |
+| rho | 53.232482 | 1.5e-05 | 6.3e-06 |
 
-$$\Pi = -f + \frac{\partial{f}}{\partial{S}}S$$
+**American put**, where there is nothing exact to compare against:
 
-as our portfolio. In this form, we represent the *-f* as the short position of a derivative and  $\frac{\partial{f}}{\partial{S}}$ as a long position on shares of the underlying. If we then allow for discrete time steps we get the $\Delta \Pi$ format which enables us to input $\Delta f$ for the function. Taking into account the assumptions of the model that the values will follow the near term riskless security the function collapses to a simpler $\Delta \Pi = r \Pi \Delta t$. Since we have $ \Delta \Pi$ as a formula and $ \Pi$ as a formula, we can insert them as follows:
+| Quantity | Value |
+|---|---|
+| European put (analytic) | 5.573526 |
+| American, binomial 2000 steps | 6.089990 |
+| American, Crank-Nicolson 800×800 | 6.089325 |
+| American, binomial 20000 steps (reference) | 6.090333 |
+| Early-exercise premium | 0.516807 |
 
-$$\left(\frac{\partial f}{\partial S} + 0.5 \cdot \frac{\partial^2 f}{\partial S^2} \sigma^2 \S^2 \right) \Delta t = r \left(f - \frac{\partial f}{\partial S} \right) \Delta t \Rightarrow \frac{\partial f}{\partial t} + r S \frac{\partial f}{\partial S} + 0.5 \cdot \sigma^2 S^2 \frac{\partial^2 f}{\partial S^2} - rf = 0$$
+The two methods disagree by 6.6e-04 — independent discretisations of the same
+free-boundary problem landing in the same place. With no dividend the American call
+equals the European call to machine zero, as it must, and the premium reappears once
+the dividend yield exceeds the rate.
 
-Our value is $f = \text{max}(S-K,0) \text{\quad when t = T}$, which results in our option.
+**Identities**, which hold for any parameters and so catch sign and factor errors:
+put-call parity to 7.1e-15, `Δ_call − Δ_put = e^(−qτ)` to 1.1e-16, matching gamma and
+vega to exactly zero, implied-vol round trip to 2.3e-11.
 
-# Finite Difference: Attempted/Reworking
+## What was wrong
 
-My primary error was in the conversion to a diffusion process of the values. When I worked on this project for classes, I tried to do so for the issues related to boundary problems, but I didn't understand the Black-Scholes equation's clutter caused issues in converging to a solution. While it would be easier to transition, I do want to try out another form. Since my initial attempt at the Finite Difference method was the explicit, rather than the implicit method. Since I had rather large time steps, reviewing numerical procedures later with the Options, Futures, and Other Derivatives text made me realize my likely instability of the model was due to the combination of the complexity from early exercise in american options and the lesser stability of the explicit method.  
+The original implementation returned a number for every input, and the numbers looked
+like option prices. Four separate defects were visible only once the methods were
+checked against something.
 
-## Crank-Nicolson Finite Difference
+**The risk-neutral probability was not a probability.** It was written
+`exp((r−q)·dt − d) / (u − d)`, subtracting the down-factor *inside* the exponential
+instead of after it. The result was `p = 6.69` at 50 steps and `13.19` at 200, so the
+price moved *away* from the truth as steps were added: an at-the-money put came out
+2.79 at 50 steps and 1.40 at 200, against a true 5.57. Adding steps to a tree is the
+one thing guaranteed to help, so a price that degrades under refinement is the
+signature of a broken lattice.
 
-In the first model I used, I had semi-trustworthy results, but not robust results. This is likely due to my usage of too large $\Delta t$ combined with the explicit finite difference method. The advantage of the Crank-Nicolson is its position as an average of the implicit and explicit finite difference method. The first issue in solving this problem is to shift the BSM model into a discretized form. The main way of doing this is to use a 1/2 fraction of the prior and current values with respect to price where our central approx for the first term is $ f'(x) = \frac{f(x+h) - f(x-h)}{2h} + O(h^2)$ and the standard approx for *f"(x)* which are approximated by:
+**Early exercise was tested against the wrong row.** The backward induction compared
+each node's continuation value against `price_tree[self.t, i]` — the period argument
+passed in by the caller — rather than against the intrinsic value at the induction
+level `n`. Every node in the tree was therefore compared against one fixed row of the
+lattice. The observable symptom is an American put worth *less* than its European
+counterpart, which is impossible: the American holder can always decline to exercise
+early.
 
-$$\frac{f_{i-1/2, j}}{\partial S} = 0.5 \cdot \left[\frac{\partial f_{i-1,j} + \partial f_{i,j}}{\partial S} + \frac{}{\partial S} \right]$$
+**Put rho had the wrong sign,** returning a positive number. A put loses value when
+rates rise. Vega was also computed with an extra `1/√(2π)` on the call branch but not
+the put branch, so the two branches disagreed with each other.
 
-which is expanded as $= 0.5 \cdot \left[ \frac{\partial f_{i-1,j} + \partial f_{i,j}}{2 \delta S} + \frac{f_{i, j+1} - f+{i,j-1}}{2 \delta S} \right] + O( \delta S^2)$.
+**Pricing could not be composed.** Each call ran `plt.show()` six times from inside
+the pricing routine and ended in `return print(...)`, which returns `None`. A price
+could not be fed into anything else — no implied vol, no surface, no test.
 
-Our second term is approximated by: 
+A fifth bug appeared in the *new* Crank-Nicolson solver during this rebuild, and it is
+the most instructive of the five. Both the current and the next time level's boundary
+values were being added to the right-hand side, but the current level's contribution
+was already present in the explicit half of the product. The at-the-money price stayed
+accurate to 1e-3 — a spot check passes — while the deep-in-the-money end of the grid
+was wrong by about **88**. What caught it was asserting on the whole solution rather
+than on the one number of interest:
 
-$$\frac{\partial^2 f_{i-1/2,j}}{\partial S^2} = 0.5 \cdot \left[ \frac{\partial^2 f_{i-1,j}}{\partial S^2} + \frac{\partial^2 f_{i,j}}{\partial S^2}\right]$$
+```python
+# tests/test_numerical.py
+def test_crank_nicolson_solution_is_monotone_and_convex_in_spot():
+    s_nodes, values, _ = cn.solve(kind="call", n_space=400, n_time=400, **ATM)
+    interior = values[1:-1]
+    assert np.all(np.diff(interior) >= -1e-9), "call value must rise with spot"
+    assert np.all(np.diff(interior, 2) >= -1e-6), "call value must be convex in spot"
+```
 
-which is expanded as $= 0.5 \cdot \left[ \frac{f_{i-1,j+1} - 2 f_{i-1,j} + f_{i-1,j-1}}{\partial S^2} + \frac{f_{i,j+1} - 2 f_{i,j} + f_{i,j-1}}{\partial S^2}  \right] + O( \delta S^2)$.
+Maximum error across the grid fell from 87.7 to 1.2e-03 once fixed.
 
-These values can be implemented into the BSM PDE and collected to get: $a_j f_{i, j-1} + (1-b_j) f_{i,j} + c_j f_{i, j+1}$
+## How it works
 
-where:
+```mermaid
+flowchart LR
+    P[S, K, tau, r, sigma, q] --> BS[black_scholes<br/>closed form]
+    P --> BN[binomial<br/>CRR lattice]
+    P --> CN[crank_nicolson<br/>tridiagonal solve]
+    BS --> EX[exact for European:<br/>the reference]
+    BN --> NUM[price + Greeks]
+    CN --> NUM
+    EX --> CHK{cross-check}
+    NUM --> CHK
+    CHK --> T[58 tests:<br/>order, parity,<br/>bounds, agreement]
+    CHK --> V[scripts/validate.py<br/>docs + figures]
+```
 
-$$ a_j = \frac{\delta t}{4} (\sigma ^2 j^2 - rj)$$
+**Analytic.** Standard BSM with a continuous dividend yield, vectorised over NumPy
+arrays so a whole surface prices in one call. Implied volatility is by bisection
+rather than Newton, because vega collapses for deep out-of-the-money options and a
+Newton step can leave the bracket entirely.
 
-$$ b_j = - \frac{\delta t}{2} (\sigma ^2 j^2 + r)$$
+**Binomial.** CRR parameterisation, `u = exp(σ√dt)`, `d = 1/u`. Backward induction is
+vectorised one level at a time. `crr_params` refuses to return a `p` outside (0,1)
+rather than pricing with it, which is the guard the original lacked.
 
-$$ c_j = \frac{\delta t}{4} (\sigma ^2 j^2 + rj)$$
+**Crank-Nicolson.** The Black-Scholes PDE in time-to-expiry on a uniform spot grid,
+with the spatial operator as a tridiagonal matrix and one `solve_banded` call per
+time step. Unconditionally stable, second order in both dimensions. The grid is
+constructed so the valuation spot lands *exactly* on a node, which means delta and
+gamma are read directly off the solved solution rather than differenced through an
+interpolation — and they cost nothing extra, because the neighbouring nodes were
+already computed.
 
-The *i* and *j* values represent values on a lattice from values between today and expiration and the price into N levels. We can solve the for f at each of the nodes of the lattice by solving the set of simultaneous equations above. (This is typically done in a matrix formation). Using the stability conditions for this method, where the values need to be under normal conditions, there is stability into infinity from the ratio of the prior and current period. The $O(\delta t^2$ and  $O(\delta S^2)$ are the convergence rates of the Crank-Nicolson Method. For greeks, the Crank-Nicolson value seems to have occasional issues, and often has been supplemented by taking a small set of periods with the explicit method before switching to Crank-Nicolson. 
+## Decisions
+
+- **Greeks from tree nodes, not from bumping the spot.** Rescaling `S` moves every
+  lattice node, so the binomial price carries a sawtooth in `S` that a `1/h²` divisor
+  amplifies: a 0.1% bump returns gamma = **0.265** against a true **0.0188**. Reading
+  delta and gamma off the level-1 and level-2 nodes has no such term. A 5% bump also
+  works, but only by being too coarse to see the noise.
+  `test_gamma_is_not_swamped_by_lattice_noise` pins this.
+- **Assert the convergence *rate*, not a tolerance.** Any single threshold is
+  arbitrary and can pass for the wrong reasons. `n × error ≈ 2.0` at every refinement
+  is a far stronger claim, and it is exactly what the original code fails.
+- **Time in years, steps as a separate argument.** The original used `N - t` as both a
+  year count and a step count. Conflating them means changing the discretisation also
+  silently changes the contract being priced.
+- **Projection rather than PSOR for American options.** Applying the exercise
+  constraint after each Crank-Nicolson step is the standard treatment (Hull ch. 21.8).
+  Solving the linear complementarity problem properly would change the price in the
+  fourth decimal here, which is what the 6.6e-04 cross-method gap reflects.
+- **Plotting separated from pricing.** Pricing returns numbers.
+
+## Quick start
+
+```bash
+pip install -e ".[dev]"
+```
+
+```bash
+options compare -S 100 -K 100 -T 1 -r 0.05 -s 0.2
+```
+
+```
+european call  S=100.0 K=100.0 tau=1.0 r=0.05 sigma=0.2 q=0.0
+method                 price       delta       gamma        vega       theta         rho
+analytic           10.450584    0.636831    0.018762   37.524035   -6.414028   53.232482
+binomial           10.448584    0.636799    0.018778   37.514592   -6.417128   53.231290
+crank-nicolson     10.449442    0.636802    0.018765   37.514662   -6.414612   53.231730
+
+absolute error vs analytic
+binomial            0.001999    0.000032    0.000016    0.009443    0.003100    0.001192
+crank-nicolson      0.001142    0.000029    0.000003    0.009373    0.000585    0.000752
+```
+
+Other commands:
+
+```bash
+options price -S 100 -K 100 -T 1 -r 0.05 -s 0.2 -k put -e american   # American, binomial
+options converge -S 100 -K 100 -T 1 -r 0.05 -s 0.2                   # error vs discretisation
+options iv --price 10.4506 -S 100 -K 100 -T 1 -r 0.05 -k call        # implied volatility
+```
+
+From Python:
+
+```python
+from options_pricing import black_scholes, binomial, compare
+
+black_scholes.price(100, 100, 1.0, 0.05, 0.2, "call")     # 10.450583572
+binomial.price(100, 100, 1.0, 0.05, 0.2, "put",
+               n_steps=2000, exercise="american")          # 6.089990
+compare(100, 100, 1.0, 0.05, 0.2, "call")                  # all three methods
+```
+
+Reproduce the documentation:
+
+```bash
+pytest                      # 58 tests
+python scripts/validate.py  # regenerates docs/VALIDATION.md and docs/img/
+```
+
+## Repository guide
+
+| Path | Contents |
+|---|---|
+| `src/options_pricing/black_scholes.py` | Closed-form price, Greeks, implied volatility |
+| `src/options_pricing/binomial.py` | CRR tree, European and American, node-based Greeks |
+| `src/options_pricing/crank_nicolson.py` | Finite-difference solver over the whole grid |
+| `src/options_pricing/plots.py` | Figures. Kept out of the pricing path |
+| `src/options_pricing/cli.py` | `options price`, `compare`, `converge`, `iv` |
+| `tests/` | 58 tests, including a named regression for each defect above |
+| `scripts/validate.py` | Regenerates `docs/VALIDATION.md` and `docs/img/` |
+| `docs/THEORY.md` | Derivations: BSM from the stock process, the CRR tree, the Crank-Nicolson discretisation |
+| `docs/VALIDATION.md` | Full tables: prices, convergence, Greeks, identities, cost |
+| `legacy/option_model.py` | The original coursework file, kept for reference. Not imported; known broken |
+
+![Black-Scholes Greeks against spot](docs/img/greeks.png)
+
+![Early-exercise premium](docs/img/early_exercise.png)
+
+*What the right to exercise early is worth: American minus European put value across
+spot. It is largest in the money, where exercising and banking the strike beats
+holding, and decays to zero far out of the money.*
+
+## Roadmap
+
+- Dividend **schedules** — discrete cash dividends, not only a continuous yield.
+- PSOR for the American free boundary, to replace projection and quantify the gap.
+- Trinomial trees, and Richardson extrapolation on the binomial to lift it to second
+  order.
+- Barrier and Asian payoffs, where the finite-difference grid has a real advantage
+  over the closed form.
+- A volatility surface fit, using the existing implied-vol solver across strikes.
+
+## Notes
+
+- References are Hull, *Options, Futures and Other Derivatives* (chapters 15, 19, 21)
+  and Stefanica, *A Primer for the Mathematics of Financial Engineering* (chapters
+  3-4). Chapter numbers cited in the source refer to these.
+- Convention: `tau` is in years, `sigma` and `r` are continuously compounded annual
+  rates, vega and rho are per 1.00 (divide by 100 for the per-percentage-point figures
+  brokers quote), and theta is per year (divide by 365 for per-day).
+- Timings in [docs/VALIDATION.md](docs/VALIDATION.md) are single-core on one machine,
+  and are there for the relative comparison rather than as a benchmark.
