@@ -1,9 +1,7 @@
 """SUPERSEDED. Kept for reference only -- this file is not part of the package and
 is known to be incorrect.
 
-This is the original coursework implementation. It is preserved because the README's
-"What was wrong" section refers to it, and because the defects in it are more
-instructive read against the replacement than described in prose. Do not import it.
+This is the original coursework implementation. Do not import it.
 
 Known defects, each with a named regression test in ``tests/test_numerical.py``:
 
