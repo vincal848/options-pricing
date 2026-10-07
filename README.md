@@ -1,6 +1,6 @@
 # Option Pricing: Analytic, Binomial and Finite-Difference
 
-[![tests](https://github.com/vincal848/options_pricing/actions/workflows/tests.yml/badge.svg)](https://github.com/vincal848/options_pricing/actions/workflows/tests.yml)
+[![tests](https://github.com/vincal848/options-pricing/actions/workflows/tests.yml/badge.svg)](https://github.com/vincal848/options-pricing/actions/workflows/tests.yml)
 
 This project came out of a final course project where I priced European and American
 options using Hull's *Options, Futures and Other Derivatives* and Stefanica's *Primer
