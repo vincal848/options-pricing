@@ -58,6 +58,23 @@ def test_price_converges_rather_than_diverges():
     assert errs[-1] < 1e-3
 
 
+def test_crank_nicolson_is_second_order():
+    """Halving both steps must cut the error ~4x, so n^2 * err is constant.
+
+    The module claims order 2, but only validate.py computed it. A scheme that
+    degrades to first order (theta != 1/2, or a one-sided time step) still passes
+    the tolerance tests above at n=600; it fails this one.
+    """
+    exact = float(bs.price(kind="put", **ATM))
+    ns = [100, 200, 400, 800, 1600]
+    errs = [abs(cn.price(kind="put", n_space=n, n_time=n, **ATM) - exact) for n in ns]
+
+    for n, e in zip(ns, errs):
+        assert n * n * e == pytest.approx(182.0, rel=0.1), f"not O(1/n^2) at n={n}: {n * n * e}"
+    for a, b in zip(errs, errs[1:]):
+        assert 3.5 < a / b < 4.5, f"halving the step should cut error ~4x: {errs}"
+
+
 def test_early_exercise_uses_the_current_level():
     """The original compared against price_tree[t, i] rather than the induction level.
 

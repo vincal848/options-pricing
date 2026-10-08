@@ -25,7 +25,7 @@ looking at the output, because it returned a plausible number for every input.
 | **Methods** | Black-Scholes-Merton closed form; CRR binomial tree; Crank-Nicolson finite differences |
 | **Instruments** | European and American calls and puts, with a continuous dividend yield |
 | **Outputs** | Price, the five Greeks, implied volatility, early-exercise premium |
-| **Validation** | 61 tests: published values, convergence order, put-call parity, dominance bounds, cross-method agreement |
+| **Validation** | 62 tests: published values, convergence order, put-call parity, dominance bounds, cross-method agreement |
 | **Observed order** | Binomial 1.00, Crank-Nicolson 2.00 — measured, not assumed |
 | **Stack** | Python, NumPy, SciPy |
 
@@ -96,7 +96,7 @@ flowchart LR
     CN --> NUM
     EX --> CHK{cross-check}
     NUM --> CHK
-    CHK --> T[61 tests:<br/>order, parity,<br/>bounds, agreement]
+    CHK --> T[62 tests:<br/>order, parity,<br/>bounds, agreement]
     CHK --> V[validate.py<br/>docs + figures]
 ```
 
@@ -179,7 +179,7 @@ binomial.price(100, 100, 1.0, 0.05, 0.2, "put",
 Reproduce the documentation:
 
 ```bash
-pytest tests -q      # 61 tests
+pytest tests -q      # 62 tests
 python validate.py   # regenerates docs/VALIDATION.md and docs/img/
 ```
 
@@ -193,7 +193,7 @@ python validate.py   # regenerates docs/VALIDATION.md and docs/img/
 | `plots.py` | Figures. Kept out of the pricing path |
 | `run.py` | `price`, `compare`, `converge`, `iv` |
 | `validate.py` | Regenerates `docs/VALIDATION.md` and `docs/img/` |
-| `tests/` | 61 tests |
+| `tests/` | 62 tests |
 | `docs/THEORY.md` | My original derivations: BSM from the stock process, the tree, the Crank-Nicolson discretisation |
 | `docs/VALIDATION.md` | Full tables: prices, convergence, Greeks, identities, cost |
 | `legacy/option_model.py` | The original file, annotated. Not imported; known broken |
