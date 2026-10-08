@@ -22,14 +22,15 @@ import numpy as np
 from black_scholes import check_kind, intrinsic
 
 
-def check_exercise(exercise):
+def check_exercise(exercise: str) -> str:
     e = str(exercise).lower()
     if e not in ("european", "american"):
         raise ValueError("exercise must be 'european' or 'american', got %r" % (exercise,))
     return e
 
 
-def crr_params(tau, r, sigma, n_steps, q=0.0):
+def crr_params(tau: float, r: float, sigma: float, n_steps: int,
+               q: float = 0.0) -> tuple[float, float, float, float, float]:
     """Return (dt, u, d, p, discount) for a CRR tree.
 
     Raises if p leaves (0, 1). A risk-neutral probability outside that range is not
@@ -55,13 +56,14 @@ def crr_params(tau, r, sigma, n_steps, q=0.0):
     return dt, u, d, p, float(np.exp(-r * dt))
 
 
-def lattice(S, u, d, level):
+def lattice(S: float, u: float, d: float, level: int) -> np.ndarray:
     """Asset prices at a level of the tree, lowest node first: S * u^j * d^(level-j)."""
     j = np.arange(level + 1)
     return S * u ** j * d ** (level - j)
 
 
-def price(S, K, tau, r, sigma, kind="call", q=0.0, n_steps=500, exercise="european"):
+def price(S: float, K: float, tau: float, r: float, sigma: float, kind: str = "call",
+          q: float = 0.0, n_steps: int = 500, exercise: str = "european") -> float:
     """Binomial price. exercise='american' tests early exercise at every node."""
     e = check_exercise(exercise)
     if tau == 0:
@@ -102,7 +104,9 @@ def induct(S, K, tau, r, sigma, kind, q, n_steps, exercise):
     return kept, u, d, dt
 
 
-def greeks(S, K, tau, r, sigma, kind="call", q=0.0, n_steps=500, exercise="european"):
+def greeks(S: float, K: float, tau: float, r: float, sigma: float, kind: str = "call",
+           q: float = 0.0, n_steps: int = 500,
+           exercise: str = "european") -> dict[str, float]:
     """Greeks for a binomial price (Hull ch. 21.6).
 
     Delta, gamma and theta come off nodes the tree already computed. Bumping the

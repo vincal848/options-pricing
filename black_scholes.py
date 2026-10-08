@@ -20,12 +20,13 @@ Stefanica, A Primer for the Mathematics of Financial Engineering, ch. 3.
 """
 
 import numpy as np
+from numpy.typing import ArrayLike
 from scipy.stats import norm
 
 GREEK_NAMES = ("delta", "gamma", "vega", "theta", "rho")
 
 
-def check_kind(kind):
+def check_kind(kind: str) -> str:
     """Normalize and validate the option type."""
     k = str(kind).lower()
     if k not in ("call", "put"):
@@ -33,7 +34,7 @@ def check_kind(kind):
     return k
 
 
-def intrinsic(S, K, kind):
+def intrinsic(S: ArrayLike, K: ArrayLike, kind: str) -> np.ndarray:
     """Payoff if exercised right now. Also the tau == 0 boundary."""
     k = check_kind(kind)
     S = np.asarray(S, dtype=float)
@@ -41,7 +42,8 @@ def intrinsic(S, K, kind):
     return np.maximum(S - K, 0.0) if k == "call" else np.maximum(K - S, 0.0)
 
 
-def d1_d2(S, K, tau, r, sigma, q=0.0):
+def d1_d2(S: ArrayLike, K: ArrayLike, tau: ArrayLike, r: ArrayLike, sigma: ArrayLike,
+          q: ArrayLike = 0.0) -> tuple[np.ndarray, np.ndarray]:
     """The two standardized moneyness terms.
 
     d1 = [ln(S/K) + (r - q + sigma^2/2) tau] / (sigma sqrt(tau))
@@ -69,7 +71,8 @@ def d1_d2(S, K, tau, r, sigma, q=0.0):
     return d1, d1 - vol
 
 
-def price(S, K, tau, r, sigma, kind="call", q=0.0):
+def price(S: ArrayLike, K: ArrayLike, tau: ArrayLike, r: ArrayLike, sigma: ArrayLike,
+          kind: str = "call", q: ArrayLike = 0.0) -> np.ndarray:
     """European option price.
 
     >>> round(float(price(100, 100, 1.0, 0.05, 0.20, "call")), 6)
@@ -96,7 +99,8 @@ def price(S, K, tau, r, sigma, kind="call", q=0.0):
     return np.where(tau == 0, intrinsic(S, K, k), out)
 
 
-def greeks(S, K, tau, r, sigma, kind="call", q=0.0):
+def greeks(S: ArrayLike, K: ArrayLike, tau: ArrayLike, r: ArrayLike, sigma: ArrayLike,
+           kind: str = "call", q: ArrayLike = 0.0) -> dict[str, np.ndarray]:
     """The five sensitivities, as a dict.
 
     Gamma and vega do not depend on the option type; delta, theta and rho do. The
@@ -136,8 +140,9 @@ def greeks(S, K, tau, r, sigma, kind="call", q=0.0):
     return {"delta": delta, "gamma": gamma, "vega": vega, "theta": theta, "rho": rho}
 
 
-def implied_vol(target, S, K, tau, r, kind="call", q=0.0,
-                lo=1e-6, hi=5.0, tol=1e-10, max_iter=200):
+def implied_vol(target: ArrayLike, S: ArrayLike, K: ArrayLike, tau: ArrayLike, r: ArrayLike,
+                kind: str = "call", q: ArrayLike = 0.0, lo: float = 1e-6, hi: float = 5.0,
+                tol: float = 1e-10, max_iter: int = 200) -> np.ndarray:
     """Volatility that reproduces an observed price.
 
     Bisection rather than Newton. Newton converges faster when it works, but vega

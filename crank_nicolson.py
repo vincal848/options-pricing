@@ -35,7 +35,8 @@ from black_scholes import intrinsic
 SIGMA_MULTIPLES = 5.0
 
 
-def build_grid(S, K, tau, sigma, n_space):
+def build_grid(S: float, K: float, tau: float, sigma: float,
+               n_space: int) -> tuple[np.ndarray, float, int]:
     """Uniform grid in S with the valuation spot landing exactly on a node.
 
     Returns (nodes, dS, j_spot). Placing S on a node means delta and gamma can be
@@ -51,15 +52,17 @@ def build_grid(S, K, tau, sigma, n_space):
     return np.arange(n_nodes + 1) * dS, dS, j_spot
 
 
-def boundaries(s_max, K, tau_remaining, r, q, kind):
+def boundaries(s_max: float, K: float, tau_remaining: float, r: float, q: float,
+               kind: str) -> tuple[float, float]:
     """Dirichlet values at S = 0 and S = S_max for the remaining time."""
     if kind == "call":
         return 0.0, s_max * np.exp(-q * tau_remaining) - K * np.exp(-r * tau_remaining)
     return K * np.exp(-r * tau_remaining), 0.0
 
 
-def solve(S, K, tau, r, sigma, kind="call", q=0.0, n_space=400, n_time=400,
-          exercise="european"):
+def solve(S: float, K: float, tau: float, r: float, sigma: float, kind: str = "call",
+          q: float = 0.0, n_space: int = 400, n_time: int = 400,
+          exercise: str = "european") -> tuple[np.ndarray, np.ndarray, int]:
     """Run the scheme; return (nodes, values, j_spot).
 
     values is the option value across the WHOLE grid at tau, not just at the spot.
@@ -121,8 +124,9 @@ def solve(S, K, tau, r, sigma, kind="call", q=0.0, n_space=400, n_time=400,
     return nodes, values, j_spot
 
 
-def price(S, K, tau, r, sigma, kind="call", q=0.0, n_space=400, n_time=400,
-          exercise="european"):
+def price(S: float, K: float, tau: float, r: float, sigma: float, kind: str = "call",
+          q: float = 0.0, n_space: int = 400, n_time: int = 400,
+          exercise: str = "european") -> float:
     """Option value at the spot, read off the node the grid was built around."""
     if tau == 0:
         return float(intrinsic(S, K, kind))
@@ -130,8 +134,9 @@ def price(S, K, tau, r, sigma, kind="call", q=0.0, n_space=400, n_time=400,
     return float(values[j_spot])
 
 
-def greeks(S, K, tau, r, sigma, kind="call", q=0.0, n_space=400, n_time=400,
-           exercise="european"):
+def greeks(S: float, K: float, tau: float, r: float, sigma: float, kind: str = "call",
+           q: float = 0.0, n_space: int = 400, n_time: int = 400,
+           exercise: str = "european") -> dict[str, float]:
     """Delta and gamma straight off the grid; vega, rho and theta by repricing.
 
     Delta and gamma are free because the solve already produced the neighbouring
